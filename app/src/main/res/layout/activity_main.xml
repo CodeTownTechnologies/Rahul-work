@@ -12,48 +12,71 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:text=""
-        app:layout_constraintBottom_toTopOf="@id/btnGoogleLogin"
+        app:layout_constraintBottom_toTopOf="@id/btnGoogleLoginWithFirebase"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
 
     <Button
-        android:id="@+id/btnGoogleLogin"
+        android:id="@+id/btnGoogleLoginWithFirebase"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
-        android:text="Login with Google!"
-        app:layout_constraintBottom_toTopOf="@id/btnOutlookLogin"
+        android:layout_marginBottom="10dp"
+        android:text="Login with Google(Firebase)"
+        app:layout_constraintBottom_toTopOf="@id/btnFacebookLoginWithoutFirebase"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent" />
 
     <Button
-        android:id="@+id/btnOutlookLogin"
+        android:id="@+id/btnFacebookLoginWithoutFirebase"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
-        android:text="Login with Outlook!"
-        app:layout_constraintBottom_toTopOf="@id/btnYahooLogin"
+        android:layout_marginBottom="10dp"
+        android:text="Login with Facebook"
+        app:layout_constraintBottom_toTopOf="@id/btnOutlookLoginWithoutFirebase"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+
+
+    <Button
+        android:id="@+id/btnOutlookLoginWithoutFirebase"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:text="Login with Outlook"
+        app:layout_constraintBottom_toTopOf="@id/btnOutlookLoginWithFirebase"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent" />
 
     <Button
-        android:id="@+id/btnYahooLogin"
+        android:id="@+id/btnOutlookLoginWithFirebase"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
-        android:text="Login with Yahoo!"
+        android:layout_marginBottom="10dp"
+        android:text="Login with Outlook(Firebase)"
+        app:layout_constraintBottom_toTopOf="@id/btnYahooLoginWithFirebase"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <Button
+        android:id="@+id/btnYahooLoginWithFirebase"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:text="Login with Yahoo!(Firebase)"
         app:layout_constraintBottom_toTopOf="@id/btnLogout"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent" />
+
+
 
 
     <Button
         android:id="@+id/btnLogout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
+        android:layout_marginBottom="10dp"
         android:text="Logout"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"

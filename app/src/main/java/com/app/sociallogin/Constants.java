@@ -7,5 +7,7 @@ public class Constants {
     public static final String YAHOO_OAUTH = "/oauth2/";
     public static final String YAHOO_CONTACTS = "/v1/";
 
+    public static final String MS_GRAPH_ROOT_ENDPOINT = "https://graph.microsoft.com/";
+
 
 }

@@ -2,8 +2,12 @@ package com.app.sociallogin;
 
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -13,6 +17,16 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.android.volley.VolleyError;
+import com.facebook.CallbackManager;
+import com.facebook.FacebookAuthorizationException;
+import com.facebook.FacebookCallback;
+import com.facebook.FacebookException;
+import com.facebook.FacebookSdk;
+import com.facebook.GraphRequest;
+import com.facebook.GraphResponse;
+import com.facebook.login.LoginManager;
+import com.facebook.login.LoginResult;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -25,12 +39,22 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.OAuthProvider;
-import com.microsoft.graph.authentication.IAuthenticationProvider;
-import com.microsoft.graph.http.IHttpRequest;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.requests.extensions.GraphServiceClient;
+import com.microsoft.identity.client.AuthenticationCallback;
+import com.microsoft.identity.client.IAccount;
+import com.microsoft.identity.client.IAuthenticationResult;
+import com.microsoft.identity.client.IPublicClientApplication;
+import com.microsoft.identity.client.ISingleAccountPublicClientApplication;
+import com.microsoft.identity.client.PublicClientApplication;
+import com.microsoft.identity.client.exception.MsalClientException;
+import com.microsoft.identity.client.exception.MsalException;
+import com.microsoft.identity.client.exception.MsalServiceException;
 
+import org.json.JSONObject;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import okhttp3.ResponseBody;
@@ -39,6 +63,8 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final String TAG = MainActivity.class.getSimpleName();
 
     private static final String CONSUMER_KEY_YAHOO =
             "dj0yJmk9MlFLc1lKRGRya2huJmQ9WVdrOVdqYzFNMFpTZVdnbWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTBi";
@@ -54,10 +80,14 @@ public class MainActivity extends AppCompatActivity {
     private GoogleSignInClient googleSignInClient;
     private String name, email, fbId, googleId, imageUrl, phone;
 
+    private ISingleAccountPublicClientApplication mSingleAccountApp;
+    private IAccount mAccount;
 
-    Button btnGoogleLogin;
-    Button btnOutlookLogin;
-    Button btnYahooLogin;
+    Button btnGoogleLoginWithFirebase;
+    Button btnFacebookLoginWithoutFirebase;
+    Button btnOutlookLoginWithoutFirebase;
+    Button btnOutlookLoginWithFirebase;
+    Button btnYahooLoginWithFirebase;
     Button btnLogout;
 
     TextView tvMessage;
@@ -66,14 +96,20 @@ public class MainActivity extends AppCompatActivity {
     private String yahooAccessToken = "";
     private FirebaseAuth mAuth;
 
+    private CallbackManager callbackManager = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btnGoogleLogin = findViewById(R.id.btnGoogleLogin);
-        btnOutlookLogin = findViewById(R.id.btnOutlookLogin);
-        btnYahooLogin = findViewById(R.id.btnYahooLogin);
+        FacebookSdk.sdkInitialize(getApplicationContext());
+
+        btnGoogleLoginWithFirebase = findViewById(R.id.btnGoogleLoginWithFirebase);
+        btnFacebookLoginWithoutFirebase = findViewById(R.id.btnFacebookLoginWithoutFirebase);
+        btnOutlookLoginWithoutFirebase = findViewById(R.id.btnOutlookLoginWithoutFirebase);
+        btnOutlookLoginWithFirebase = findViewById(R.id.btnOutlookLoginWithFirebase);
+        btnYahooLoginWithFirebase = findViewById(R.id.btnYahooLoginWithFirebase);
         btnLogout = findViewById(R.id.btnLogout);
         tvMessage = findViewById(R.id.tvMessage);
 
@@ -94,27 +130,42 @@ public class MainActivity extends AppCompatActivity {
 
         onLogout();
 
+        setUpOutlookWithoutFirebase();
 
-        btnGoogleLogin.setOnClickListener(new View.OnClickListener() {
+        btnGoogleLoginWithFirebase.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                onGoogleLogin();
+                onGoogleLoginWithFirebase();
             }
         });
 
-        btnYahooLogin.setOnClickListener(new View.OnClickListener() {
+        btnFacebookLoginWithoutFirebase.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                onFbLoginWithoutFirebase();
+            }
+        });
+
+        btnYahooLoginWithFirebase.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
-                onYahooLogin();
+                onYahooLoginWithFirebase();
 
             }
         });
 
-        btnOutlookLogin.setOnClickListener(new View.OnClickListener() {
+        btnOutlookLoginWithoutFirebase.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                onOutlookLogin();
+                onOutlookLoginWithoutFirebase();
+            }
+        });
+
+        btnOutlookLoginWithFirebase.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                onOutlookLoginWithFirebase();
             }
         });
 
@@ -126,6 +177,24 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo("com.app.sociallogin", PackageManager.GET_SIGNATURES);
+            for (Signature signature : info.signatures) {
+                MessageDigest md;
+                md = MessageDigest.getInstance("SHA");
+                md.update(signature.toByteArray());
+                String something = new String(Base64.encode(md.digest(), 0));
+                //String something = new String(Base64.encodeBytes(md.digest()));
+                Log.e("hash key", something);
+            }
+        } catch (PackageManager.NameNotFoundException e1) {
+            Log.e("name not found", e1.toString());
+        } catch (NoSuchAlgorithmException e) {
+            Log.e("no such an algorithm", e.toString());
+        } catch (Exception e) {
+            Log.e("exception", e.toString());
+        }
     }
 
     private void onLogout() {
@@ -136,15 +205,22 @@ public class MainActivity extends AppCompatActivity {
             FirebaseAuth.getInstance().signOut();
         }
 
+        if (com.facebook.AccessToken.getCurrentAccessToken() != null) {
+            LoginManager.getInstance().logOut();
+        }
+
+        tvMessage.setText("");
+
     }
 
-    /*Google Login*/
 
-    private void onGoogleLogin() {
+
+    /*Google Login with Firebase*/
+    private void onGoogleLoginWithFirebase() {
 
 
         GoogleSignInOptions googleSignInOptions = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(getString(R.string.default_web_client_id))
+                //.requestIdToken(getString(R.string.default_web_client_id))
                 .requestEmail()
                 .requestProfile()
                 .requestId()
@@ -157,10 +233,78 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(signInIntent, GOOGLE_SIGN_IN_REQUEST);
     }
 
+
+
+    /*Facebook Login without Firebase*/
+    private void onFbLoginWithoutFirebase() {
+
+        callbackManager = CallbackManager.Factory.create();
+
+        LoginManager.getInstance().logInWithReadPermissions(this, Arrays.asList("public_profile", "email"));
+
+        LoginManager.getInstance().registerCallback(callbackManager,
+                new FacebookCallback<LoginResult>() {
+                    @Override
+                    public void onSuccess(LoginResult loginResult) {
+                        startProgressBar();
+                        GraphRequest request = GraphRequest.newMeRequest(loginResult.getAccessToken(), new GraphRequest.GraphJSONObjectCallback() {
+                            @Override
+                            public void onCompleted(JSONObject user1, GraphResponse graphResponse) {
+                                dismissProgressBar();
+                                try {
+
+                                    fbId = user1.getString("id");
+                                    name = user1.optString("name");
+                                    email = user1.optString("email");
+                                    JSONObject picture = user1.optJSONObject("picture");
+                                    JSONObject pictureData = picture.optJSONObject("data");
+                                    //String imageUrl = pictureData.optString("url");
+                                    imageUrl = String.format("http://graph.facebook.com/%s/picture?type=large", fbId);
+
+                                    tvMessage.setText("Facebook Details " +
+                                            "\n\n" +
+                                            name +
+                                            "\n" +
+                                            email /*+
+                                "\n" +
+                                account.getIdToken()*/);
+
+
+                                } catch (Exception e) {
+                                    dismissProgressBar();
+                                    e.printStackTrace();
+                                }
+                            }
+                        });
+                        Bundle parameters = new Bundle();
+                        parameters.putString("fields", "id,name,first_name,last_name,email,gender,birthday,picture");
+                        request.setParameters(parameters);
+                        request.executeAsync();
+                    }
+
+                    @Override
+                    public void onCancel() {
+
+                    }
+
+                    @Override
+                    public void onError(FacebookException exception) {
+                        if (exception instanceof FacebookAuthorizationException) {
+                            if (com.facebook.AccessToken.getCurrentAccessToken() != null) {
+                                LoginManager.getInstance().logOut();
+                            }
+                        }
+                    }
+                });
+
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (callbackManager != null) {
+            callbackManager.onActivityResult(requestCode, resultCode, data);
+        }
         super.onActivityResult(requestCode, resultCode, data);
-        startProgressBar();
 
 
         switch (requestCode) {
@@ -207,12 +351,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
-        dismissProgressBar();
     }
 
 
-    /*Outlook Login*/
-    private void onOutlookLogin() {
+
+    /*Outlook Login with Firebase*/
+    private void onOutlookLoginWithFirebase() {
 
         OAuthProvider.Builder provider = OAuthProvider.newBuilder("microsoft.com");
 
@@ -293,26 +437,134 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+
+
     /*Outlook Login without Firebase*/
-    private void onOutlookLoginWithoutFirebase(){
+    private void setUpOutlookWithoutFirebase() {
 
-        IAuthenticationProvider authProvider = new IAuthenticationProvider() {
-            @Override
-            public void authenticateRequest(IHttpRequest request) {
-            }
-        };
+        // Creates a PublicClientApplication object with res/raw/auth_config_single_account.json
+        PublicClientApplication.createSingleAccountPublicClientApplication(this,
+                R.raw.auth_config_single_account,
+                new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
+                    @Override
+                    public void onCreated(ISingleAccountPublicClientApplication application) {
+                        /**
+                         * This test app assumes that the app is only going to support one account.
+                         * This requires "account_mode" : "SINGLE" in the config json file.
+                         **/
+                        mSingleAccountApp = application;
+                        loadAccount();
+                    }
 
-        IGraphServiceClient graphClient =
-                GraphServiceClient
-                        .builder()
-                        .authenticationProvider(authProvider)
-                        .buildClient();
+                    @Override
+                    public void onError(MsalException exception) {
+
+                    }
+                });
 
     }
 
-    /*Yahoo Login*/
+    private void loadAccount() {
+        if (mSingleAccountApp == null) {
+            return;
+        }
 
-    private void onYahooLogin() {
+        mSingleAccountApp.getCurrentAccountAsync(new ISingleAccountPublicClientApplication.CurrentAccountCallback() {
+            @Override
+            public void onAccountLoaded(@Nullable IAccount activeAccount) {
+                // You can use the account data to update your UI or your app database.
+                mAccount = activeAccount;
+                //updateUI();
+            }
+
+            @Override
+            public void onAccountChanged(@Nullable IAccount priorAccount, @Nullable IAccount currentAccount) {
+                if (currentAccount == null) {
+                    // Perform a cleanup task as the signed-in account changed.
+                    //showToastOnSignOut();
+                }
+            }
+
+            @Override
+            public void onError(@NonNull MsalException exception) {
+                //displayError(exception);
+            }
+        });
+    }
+
+    private void onOutlookLoginWithoutFirebase(){
+
+        mSingleAccountApp.signIn(this, null, new String[]{"email", "contacts.read"}, getAuthInteractiveCallback());
+
+    }
+
+    private AuthenticationCallback getAuthInteractiveCallback() {
+        return new AuthenticationCallback() {
+
+            @Override
+            public void onSuccess(IAuthenticationResult authenticationResult) {
+                /* Successfully got a token, use it to call a protected resource - MSGraph */
+                Log.d(TAG, "Successfully authenticated");
+                Log.d(TAG, "ID Token: " + authenticationResult.getAccount().getClaims().get("id_token"));
+
+                /* Update account */
+                mAccount = authenticationResult.getAccount();
+                //updateUI();
+
+                /* call graph */
+                callGraphAPI(authenticationResult);
+            }
+
+            @Override
+            public void onError(MsalException exception) {
+                /* Failed to acquireToken */
+                Log.d(TAG, "Authentication failed: " + exception.toString());
+                //displayError(exception);
+
+                if (exception instanceof MsalClientException) {
+                    /* Exception inside MSAL, more info inside MsalError.java */
+                } else if (exception instanceof MsalServiceException) {
+                    /* Exception when communicating with the STS, likely config issue */
+                }
+            }
+
+            @Override
+            public void onCancel() {
+                /* User canceled the authentication */
+                Log.d(TAG, "User cancelled login.");
+            }
+        };
+    }
+
+    private void callGraphAPI(final IAuthenticationResult authenticationResult) {
+
+
+        MSGraphRequestWrapper.callGraphAPIUsingVolley(
+                this,
+                "",
+                authenticationResult.getAccessToken(),
+                new com.android.volley.Response.Listener<JSONObject>() {
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        /* Successfully called graph, process data and send to UI */
+                        Log.d(TAG, "Response: " + response.toString());
+                        tvMessage.setText(response.toString());
+                    }
+                },
+                new com.android.volley.Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.d(TAG, "Error: " + error.toString());
+                        //displayError(error);
+                    }
+                });
+    }
+
+
+
+    /*Yahoo Login with Firebase*/
+
+    private void onYahooLoginWithFirebase() {
         OAuthProvider.Builder provider = OAuthProvider.newBuilder("yahoo.com");
 
         // Prompt user to re-authenticate to Yahoo.
@@ -431,7 +683,7 @@ public class MainActivity extends AppCompatActivity {
 
     /*Yahoo login without firebase*/
 
-    /*private void yahooLoginWithoutFirebase() {
+    private void yahooLoginWithoutFirebase() {
 
         String url = Constants.YAHOO_BASE_URL +
                 Constants.YAHOO_OAUTH + "" +
@@ -513,7 +765,10 @@ public class MainActivity extends AppCompatActivity {
                 progress.dismiss();
             }
         });
-    }*/
+    }
+
+
+
 
     private void startProgressBar() {
         progress = new ProgressDialog(this);

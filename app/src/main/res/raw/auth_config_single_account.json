@@ -1,0 +1,13 @@
+{
+  "client_id" : "ed05340d-d272-4059-9a2e-b36e35de3869",
+  "authorization_user_agent" : "DEFAULT",
+  "redirect_uri" : "msauth://com.app.sociallogin/01%2FK4gf6hJAFGc0NAKRVIUwupsc%3D",
+  "account_mode" : "SINGLE",
+  "broker_redirect_uri_registered": true,
+  "authorities" : [
+    {
+      "type": "AAD",
+      "authority_url": "https://login.microsoftonline.com/consumers"
+    }
+  ]
+}

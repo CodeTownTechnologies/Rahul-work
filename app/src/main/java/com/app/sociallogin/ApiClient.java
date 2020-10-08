@@ -38,7 +38,7 @@ public class ApiClient {
 
             retrofit = new Retrofit.Builder()
                     .client(okHttpClient)
-                    .baseUrl(Constants.YAHOO_BASE_URL)
+                    .baseUrl(Constants.MS_GRAPH_ROOT_ENDPOINT)
                     .addConverterFactory(GsonConverterFactory.create(gson))
                     .build();
         }
