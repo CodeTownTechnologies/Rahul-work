@@ -1,23 +1,33 @@
 package com.app.sociallogin;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
+import android.webkit.CookieManager;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.android.volley.VolleyError;
+import com.app.sociallogin.api.ApiClient;
+import com.app.sociallogin.api.ApiInterface;
+import com.app.sociallogin.models.LinkedInProfileResponse;
+import com.app.sociallogin.models.YahooProfileResponse;
+import com.app.sociallogin.util.Constants;
+import com.app.sociallogin.util.Util;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookAuthorizationException;
 import com.facebook.FacebookCallback;
@@ -39,6 +49,7 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.OAuthProvider;
+import com.google.gson.Gson;
 import com.microsoft.identity.client.AuthenticationCallback;
 import com.microsoft.identity.client.IAccount;
 import com.microsoft.identity.client.IAuthenticationResult;
@@ -66,19 +77,13 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
-    private static final String CONSUMER_KEY_YAHOO =
-            "dj0yJmk9MlFLc1lKRGRya2huJmQ9WVdrOVdqYzFNMFpTZVdnbWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTBi";
-
-    private static final String CONSUMER_SECRET_YAHOO =
-            "ad5d41fe988c894dfdfdbdf9b7e43105764fd8d6";
-
-    private static final String REDIRECT_URI = "com.app.yahoologin://login";
-
-    private static final int REQUEST = 4;
 
     private static final int GOOGLE_SIGN_IN_REQUEST = 12;
+    private static final int LINKEDIN_LOGIN_REQUEST = 13;
+    private static final int YAHOO_LOGIN_REQUEST = 14;
+
+
     private GoogleSignInClient googleSignInClient;
-    private String name, email, fbId, googleId, imageUrl, phone;
 
     private ISingleAccountPublicClientApplication mSingleAccountApp;
     private IAccount mAccount;
@@ -87,7 +92,9 @@ public class MainActivity extends AppCompatActivity {
     Button btnFacebookLoginWithoutFirebase;
     Button btnOutlookLoginWithoutFirebase;
     Button btnOutlookLoginWithFirebase;
+    Button btnYahooLoginWithoutFirebase;
     Button btnYahooLoginWithFirebase;
+    Button btnLinkedInLoginWithoutFirebase;
     Button btnLogout;
 
     TextView tvMessage;
@@ -109,7 +116,9 @@ public class MainActivity extends AppCompatActivity {
         btnFacebookLoginWithoutFirebase = findViewById(R.id.btnFacebookLoginWithoutFirebase);
         btnOutlookLoginWithoutFirebase = findViewById(R.id.btnOutlookLoginWithoutFirebase);
         btnOutlookLoginWithFirebase = findViewById(R.id.btnOutlookLoginWithFirebase);
+        btnYahooLoginWithoutFirebase = findViewById(R.id.btnYahooLoginWithoutFirebase);
         btnYahooLoginWithFirebase = findViewById(R.id.btnYahooLoginWithFirebase);
+        btnLinkedInLoginWithoutFirebase = findViewById(R.id.btnLinkedInLoginWithoutFirebase);
         btnLogout = findViewById(R.id.btnLogout);
         tvMessage = findViewById(R.id.tvMessage);
 
@@ -146,15 +155,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        btnYahooLoginWithFirebase.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-
-                onYahooLoginWithFirebase();
-
-            }
-        });
-
         btnOutlookLoginWithoutFirebase.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -169,6 +169,28 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        btnYahooLoginWithoutFirebase.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                onYahooLoginWithoutFirebase();
+            }
+        });
+
+        btnYahooLoginWithFirebase.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                onYahooLoginWithFirebase();
+
+            }
+        });
+
+        btnLinkedInLoginWithoutFirebase.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                onLinkedInLoginWithoutFirebase();
+            }
+        });
 
         btnLogout.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -209,10 +231,15 @@ public class MainActivity extends AppCompatActivity {
             LoginManager.getInstance().logOut();
         }
 
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT_WATCH) {
+            CookieManager.getInstance().removeAllCookies(null);
+        } else {
+            CookieManager.getInstance().removeAllCookie();
+        }
+
         tvMessage.setText("");
 
     }
-
 
 
     /*Google Login with Firebase*/
@@ -234,7 +261,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-
     /*Facebook Login without Firebase*/
     private void onFbLoginWithoutFirebase() {
 
@@ -253,13 +279,13 @@ public class MainActivity extends AppCompatActivity {
                                 dismissProgressBar();
                                 try {
 
-                                    fbId = user1.getString("id");
-                                    name = user1.optString("name");
-                                    email = user1.optString("email");
+                                    String fbId = user1.getString("id");
+                                    String name = user1.optString("name");
+                                    String email = user1.optString("email");
                                     JSONObject picture = user1.optJSONObject("picture");
                                     JSONObject pictureData = picture.optJSONObject("data");
                                     //String imageUrl = pictureData.optString("url");
-                                    imageUrl = String.format("http://graph.facebook.com/%s/picture?type=large", fbId);
+                                    String imageUrl = String.format("http://graph.facebook.com/%s/picture?type=large", fbId);
 
                                     tvMessage.setText("Facebook Details " +
                                             "\n\n" +
@@ -298,61 +324,6 @@ public class MainActivity extends AppCompatActivity {
                 });
 
     }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        if (callbackManager != null) {
-            callbackManager.onActivityResult(requestCode, resultCode, data);
-        }
-        super.onActivityResult(requestCode, resultCode, data);
-
-
-        switch (requestCode) {
-
-            case GOOGLE_SIGN_IN_REQUEST:
-
-                if (resultCode == RESULT_OK) {
-                    Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
-
-
-                    try {
-                        GoogleSignInAccount account = task.getResult(ApiException.class);
-
-                        googleId = account.getId();
-                        email = account.getEmail();
-                        name = account.getDisplayName();
-
-                        imageUrl = "";
-
-                        if (account.getPhotoUrl() != null) {
-                            imageUrl = account.getPhotoUrl().toString();
-                        }
-
-                        tvMessage.setText("Google Details " +
-                                "\n\n" +
-                                account.getDisplayName() +
-                                "\n" +
-                                account.getEmail() /*+
-                                "\n" +
-                                account.getIdToken()*/);
-
-
-                        dismissProgressBar();
-
-
-                    } catch (ApiException e) {
-                        dismissProgressBar();
-                        e.printStackTrace();
-                    }
-                }
-
-                break;
-
-        }
-
-
-    }
-
 
 
     /*Outlook Login with Firebase*/
@@ -438,7 +409,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-
     /*Outlook Login without Firebase*/
     private void setUpOutlookWithoutFirebase() {
 
@@ -492,7 +462,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void onOutlookLoginWithoutFirebase(){
+    private void onOutlookLoginWithoutFirebase() {
 
         mSingleAccountApp.signIn(this, null, new String[]{"email", "contacts.read"}, getAuthInteractiveCallback());
 
@@ -649,112 +619,80 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void getYahooProfile(String authToken) {
-
-        progress = new ProgressDialog(this);
-        progress.setTitle(R.string.app_name);
-        progress.setMessage("Loading...");
-        progress.setCancelable(false);
-        progress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-        progress.setIndeterminate(true);
-        progress.show();
-
-        ApiInterface apiInterface = ApiClient.getClient().create(ApiInterface.class);
-        Call<ResponseBody> loginCall = apiInterface.getYahooProfile(
-                "Bearer " + authToken);
-        loginCall.enqueue(new Callback<ResponseBody>() {
-            @Override
-            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
-                progress.dismiss();
-                if (response.body() != null) {
-
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ResponseBody> call, Throwable t) {
-                Log.e("onFailure: ", t.getLocalizedMessage());
-                progress.dismiss();
-            }
-        });
-    }
 
 
 
     /*Yahoo login without firebase*/
 
-    private void yahooLoginWithoutFirebase() {
+    private void onYahooLoginWithoutFirebase() {
 
-        String url = Constants.YAHOO_BASE_URL +
-                Constants.YAHOO_OAUTH + "" +
-                "request_auth?" +
-                "client_id=" + CONSUMER_KEY_YAHOO +
-                "&redirect_uri=" + REDIRECT_URI +
+        String url = Constants.YAHOO_OAUTH_REQUEST_AUTH_URL +
+                "?" +
+                "client_id=" + Constants.CONSUMER_KEY_YAHOO_WITHOUT_FIREBASE +
+                "&redirect_uri=" + Constants.YAHOO_REDIRECT_URI +
                 "&response_type=code" +
+                "&state=" + Constants.YAHOO_STATE +
                 "&language=en-us";
-        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        if (browserIntent.resolveActivity(getPackageManager()) != null) {
-            startActivity(browserIntent);
-        }
+        Intent browserIntent = new Intent(this, WebViewActivity.class);
+        browserIntent.putExtra("type", "yahoo");
+        browserIntent.putExtra("url", url);
+        browserIntent.putExtra("state", Constants.YAHOO_STATE);
+        startActivityForResult(browserIntent, YAHOO_LOGIN_REQUEST);
 
     }
 
-    private void requestYahooAccessToken(String authCode) {
+    private void getYahooProfile(String accessToken) {
 
-        progress = new ProgressDialog(this);
-        progress.setTitle(R.string.app_name);
-        progress.setMessage("Loading...");
-        progress.setCancelable(false);
-        progress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-        progress.setIndeterminate(true);
-        progress.show();
+        startProgressBar();
 
         ApiInterface apiInterface = ApiClient.getClient().create(ApiInterface.class);
-        Call<YahooAccessTokenResponse> apiCall = apiInterface.getYahooToken(CONSUMER_KEY_YAHOO,
-                CONSUMER_SECRET_YAHOO, REDIRECT_URI,
-                authCode, "authorization_code");
-        apiCall.enqueue(new Callback<YahooAccessTokenResponse>() {
+        Call<ResponseBody> loginCall = apiInterface.getYahooProfile(Constants.YAHOO_OPENID_USERINFO_URL,
+                "Bearer " + accessToken);
+        loginCall.enqueue(new Callback<ResponseBody>() {
             @Override
-            public void onResponse(Call<YahooAccessTokenResponse> call, Response<YahooAccessTokenResponse> response) {
-                progress.dismiss();
-                if (response.isSuccessful()) {
-                    YahooAccessTokenResponse yahooAccessTokenResponse = response.body();
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                dismissProgressBar();
+                if (response.body() != null) {
+                    String text = Util.convertStreamToString(response.body().byteStream());
+                    Log.d("Result", "text = " + text);
+                    YahooProfileResponse yahooProfileResponse = new Gson().fromJson(text,
+                            YahooProfileResponse.class);
 
-                    if (yahooAccessTokenResponse != null && yahooAccessTokenResponse.getAccessToken() != null) {
-                        getYahooContacts(yahooAccessTokenResponse.getAccessToken(),
-                                yahooAccessTokenResponse.getXoauthYahooGuid());
-                    }
-                } else {
+                    String name = yahooProfileResponse.getName();
+                    String email = yahooProfileResponse.getEmail();
 
+                    tvMessage.setText("Yahoo Details " +
+                            "\n\n" +
+                            name +
+                            "\n" +
+                            email /*+
+                                "\n" +
+                    account.getIdToken()*/);
                 }
             }
 
             @Override
-            public void onFailure(Call<YahooAccessTokenResponse> call, Throwable t) {
-                progress.dismiss();
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                Log.e("onFailure: ", t.getLocalizedMessage());
+                dismissProgressBar();
             }
         });
-
     }
 
     private void getYahooContacts(String authToken, String userId) {
 
-        progress = new ProgressDialog(this);
-        progress.setTitle(R.string.app_name);
-        progress.setMessage("Loading...");
-        progress.setCancelable(false);
-        progress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-        progress.setIndeterminate(true);
-        progress.show();
+        startProgressBar();
 
         ApiInterface apiInterface = ApiClient.getClient().create(ApiInterface.class);
-        Call<ResponseBody> loginCall = apiInterface.getYahooContacts(
+        Call<ResponseBody> loginCall = apiInterface.getYahooContacts(Constants.YAHOO_CONTACTS_URL,
                 "Bearer " + authToken, userId, "json");
         loginCall.enqueue(new Callback<ResponseBody>() {
             @Override
             public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
-                progress.dismiss();
+                dismissProgressBar();
                 if (response.body() != null) {
+                    String text = Util.convertStreamToString(response.body().byteStream());
+                    Log.d("Result", "text = " + text);
 
                 }
             }
@@ -762,12 +700,165 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<ResponseBody> call, Throwable t) {
                 Log.e("onFailure: ", t.getLocalizedMessage());
-                progress.dismiss();
+                dismissProgressBar();
             }
         });
     }
 
 
+    /*LinkedIn login without firebase*/
+
+    private void onLinkedInLoginWithoutFirebase() {
+
+        String url = Constants.LINKEDIN_AUTHORIZATION_URL + "" +
+                "?" +
+                "client_id=" + Constants.CLIENT_ID_LINKEDIN +
+                "&redirect_uri=" + Constants.LINKEDIN_REDIRECT_URI +
+                "&response_type=code" +
+                "&state=" + Constants.LINKEDIN_STATE +
+                "&scope=" + Constants.LINKEDIN_SCOPES;
+
+        Intent browserIntent = new Intent(this, WebViewActivity.class);
+        browserIntent.putExtra("type", "linkedin");
+        browserIntent.putExtra("url", url);
+        browserIntent.putExtra("state", Constants.LINKEDIN_STATE);
+        startActivityForResult(browserIntent, LINKEDIN_LOGIN_REQUEST);
+
+    }
+
+    private void getLinkedInProfile(String accessToken) {
+        startProgressBar();
+        ApiInterface apiInterface = ApiClient.getClient().create(ApiInterface.class);
+        Call<ResponseBody> apiCall = apiInterface.getLinkedInProfile(Constants.LINKEDIN_GET_PROFILE_URL,
+                "Bearer " + accessToken);
+        apiCall.enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                dismissProgressBar();
+                if (response.body() != null) {
+
+                    String text = Util.convertStreamToString(response.body().byteStream());
+                    Log.d("Result", "text = " + text);
+                    LinkedInProfileResponse linkedInProfileResponse = new Gson().fromJson(text,
+                            LinkedInProfileResponse.class);
+
+                    String name = linkedInProfileResponse.getLocalizedFirstName();
+                    String lastName = linkedInProfileResponse.getLocalizedLastName();
+
+                    tvMessage.setText("LinkedIn Details " +
+                            "\n\n" +
+                            name + " " + lastName /*+
+                                                    "\n" +
+                                                    email +
+                                "\n" +
+                                account.getIdToken()*/);
+
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                Log.e("onFailure: ", t.getLocalizedMessage());
+                dismissProgressBar();
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (callbackManager != null) {
+            callbackManager.onActivityResult(requestCode, resultCode, data);
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+
+
+        switch (requestCode) {
+
+            case GOOGLE_SIGN_IN_REQUEST:
+
+                if (resultCode == RESULT_OK) {
+                    Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+
+
+                    try {
+                        GoogleSignInAccount account = task.getResult(ApiException.class);
+
+                        String googleId = account.getId();
+                        String email = account.getEmail();
+                        String name = account.getDisplayName();
+
+                        String imageUrl = "";
+
+                        if (account.getPhotoUrl() != null) {
+                            imageUrl = account.getPhotoUrl().toString();
+                        }
+
+                        tvMessage.setText("Google Details " +
+                                "\n\n" +
+                                account.getDisplayName() +
+                                "\n" +
+                                account.getEmail() /*+
+                                "\n" +
+                                account.getIdToken()*/);
+
+
+                        dismissProgressBar();
+
+
+                    } catch (ApiException e) {
+                        dismissProgressBar();
+                        e.printStackTrace();
+                    }
+                }
+
+                break;
+
+            case LINKEDIN_LOGIN_REQUEST:
+
+                if (resultCode == Activity.RESULT_OK) {
+
+                    if (data != null && data.hasExtra("state_match")) {
+                        if (data.getBooleanExtra("state_match", false)) {
+                            if (data.hasExtra("access_token")) {
+                                getLinkedInProfile(data.getStringExtra("access_token"));
+
+                            } else if (data.hasExtra("error_description")) {
+                                Toast.makeText(this, data.getStringExtra("error_description"), Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(this, "Some error occurred", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                }
+
+                break;
+
+            case YAHOO_LOGIN_REQUEST:
+
+                if (resultCode == Activity.RESULT_OK) {
+
+                    if (data != null && data.hasExtra("state_match")) {
+                        if (data.getBooleanExtra("state_match", false)) {
+                            if (data.hasExtra("access_token")) {
+                                getYahooProfile(data.getStringExtra("access_token"));
+
+                            } else if (data.hasExtra("error_description")) {
+                                Toast.makeText(this, data.getStringExtra("error_description"), Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(this, "Some error occurred", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                }
+
+                break;
+
+        }
+
+
+    }
 
 
     private void startProgressBar() {

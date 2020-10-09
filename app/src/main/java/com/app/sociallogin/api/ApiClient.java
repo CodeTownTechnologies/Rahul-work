@@ -1,6 +1,7 @@
-package com.app.sociallogin;
+package com.app.sociallogin.api;
 
 
+import com.app.sociallogin.util.Constants;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
