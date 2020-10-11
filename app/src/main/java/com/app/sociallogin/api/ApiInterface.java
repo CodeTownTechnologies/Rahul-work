@@ -1,6 +1,7 @@
 package com.app.sociallogin.api;
 
 import com.app.sociallogin.models.LinkedInTokenResponse;
+import com.app.sociallogin.models.MicrosoftTokenResponse;
 import com.app.sociallogin.models.YahooAccessTokenResponse;
 
 import okhttp3.ResponseBody;
@@ -47,6 +48,20 @@ public interface ApiInterface {
 
     @GET()
     Call<ResponseBody> getLinkedInProfile(@Url String url,
+                                          @Header("Authorization") String accessToken);
+
+
+    @FormUrlEncoded
+    @POST()
+    Call<MicrosoftTokenResponse> getOutlookAccessToken(@Url String url,
+                                                       @Field("grant_type") String grantType,
+                                                       @Field("code") String code,
+                                                       @Field("redirect_uri") String redirect_uri,
+                                                       @Field("client_id") String clientId,
+                                                       @Field("client_secret") String clientSecret);
+
+    @GET()
+    Call<ResponseBody> getOutlookProfile(@Url String url,
                                           @Header("Authorization") String accessToken);
 
 

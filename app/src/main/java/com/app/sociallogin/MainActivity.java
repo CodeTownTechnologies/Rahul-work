@@ -21,10 +21,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.android.volley.VolleyError;
 import com.app.sociallogin.api.ApiClient;
 import com.app.sociallogin.api.ApiInterface;
 import com.app.sociallogin.models.LinkedInProfileResponse;
+import com.app.sociallogin.models.MicrosoftProfileResponse;
 import com.app.sociallogin.models.YahooProfileResponse;
 import com.app.sociallogin.util.Constants;
 import com.app.sociallogin.util.Util;
@@ -81,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int GOOGLE_SIGN_IN_REQUEST = 12;
     private static final int LINKEDIN_LOGIN_REQUEST = 13;
     private static final int YAHOO_LOGIN_REQUEST = 14;
+    private static final int MICROSOFT_LOGIN_REQUEST = 15;
 
 
     private GoogleSignInClient googleSignInClient;
@@ -137,9 +138,10 @@ public class MainActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
+        //setUpOutlookWithoutFirebase();
+
         onLogout();
 
-        setUpOutlookWithoutFirebase();
 
         btnGoogleLoginWithFirebase.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -158,6 +160,8 @@ public class MainActivity extends AppCompatActivity {
         btnOutlookLoginWithoutFirebase.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
+                //onOutlookLoginWithoutFirebaseWithMSAL();
                 onOutlookLoginWithoutFirebase();
             }
         });
@@ -238,6 +242,19 @@ public class MainActivity extends AppCompatActivity {
         }
 
         tvMessage.setText("");
+
+        /*if (mSingleAccountApp != null) {
+            mSingleAccountApp.signOut(new ISingleAccountPublicClientApplication.SignOutCallback() {
+                @Override
+                public void onSignOut() {
+                    mAccount = null;
+                }
+
+                @Override
+                public void onError(@NonNull MsalException exception) {
+                }
+            });
+        }*/
 
     }
 
@@ -381,18 +398,12 @@ public class MainActivity extends AppCompatActivity {
                                     // authResult.getCredential().getIdToken().
                                     if (authResult.getAdditionalUserInfo() != null &&
                                             authResult.getAdditionalUserInfo().getProfile() != null) {
-                                        for (int i = 0; i < authResult.getAdditionalUserInfo().getProfile().size(); i++) {
-                                            authResult.getUser();
-                                        }
-                                        if (mAuth.getCurrentUser() != null) {
-                                            //String userId = firebaseAuth.getCurrentUser().getProviderData().get(0).getUid();
 
-                                            authResult.getUser().getProviderData().get(1).getUid();
-
-
-                                            //getYahooProfile("");
-
-                                        }
+                                        tvMessage.setText("Outlook Details " +
+                                                "\n\n" +
+                                                authResult.getAdditionalUserInfo().getProfile().get("displayName").toString() +
+                                                "\n" +
+                                                authResult.getAdditionalUserInfo().getProfile().get("userPrincipalName").toString());
                                     }
                                 }
                             })
@@ -410,7 +421,26 @@ public class MainActivity extends AppCompatActivity {
 
 
     /*Outlook Login without Firebase*/
-    private void setUpOutlookWithoutFirebase() {
+
+    private void onOutlookLoginWithoutFirebase() {
+
+        String url = Constants.MICROSOFT_AUTHORIZATION_URL + "" +
+                "?" +
+                "client_id=" + Constants.CLIENT_ID_MICROSOFT +
+                "&redirect_uri=" + Constants.MICROSOFT_REDIRECT_URI +
+                "&response_type=code" +
+                "&state=" + Constants.MICROSOFT_STATE +
+                "&scope=" + Constants.MICROSOFT_SCOPES;
+
+        Intent browserIntent = new Intent(this, WebViewActivity.class);
+        browserIntent.putExtra("type", "outlook");
+        browserIntent.putExtra("url", url);
+        browserIntent.putExtra("state", Constants.MICROSOFT_STATE);
+        startActivityForResult(browserIntent, MICROSOFT_LOGIN_REQUEST);
+
+    }
+
+    /*private void setUpOutlookWithoutFirebaseWithMSAL() {
 
         // Creates a PublicClientApplication object with res/raw/auth_config_single_account.json
         PublicClientApplication.createSingleAccountPublicClientApplication(this,
@@ -418,10 +448,10 @@ public class MainActivity extends AppCompatActivity {
                 new IPublicClientApplication.ISingleAccountApplicationCreatedListener() {
                     @Override
                     public void onCreated(ISingleAccountPublicClientApplication application) {
-                        /**
+                        *//**
                          * This test app assumes that the app is only going to support one account.
                          * This requires "account_mode" : "SINGLE" in the config json file.
-                         **/
+                         **//*
                         mSingleAccountApp = application;
                         loadAccount();
                     }
@@ -444,6 +474,16 @@ public class MainActivity extends AppCompatActivity {
             public void onAccountLoaded(@Nullable IAccount activeAccount) {
                 // You can use the account data to update your UI or your app database.
                 mAccount = activeAccount;
+                mSingleAccountApp.signOut(new ISingleAccountPublicClientApplication.SignOutCallback() {
+                    @Override
+                    public void onSignOut() {
+                        mAccount = null;
+                    }
+
+                    @Override
+                    public void onError(@NonNull MsalException exception) {
+                    }
+                });
                 //updateUI();
             }
 
@@ -462,9 +502,23 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void onOutlookLoginWithoutFirebase() {
+    private void onOutlookLoginWithoutFirebaseWithMSAL() {
 
-        mSingleAccountApp.signIn(this, null, new String[]{"email", "contacts.read"}, getAuthInteractiveCallback());
+        if (mSingleAccountApp != null) {
+
+            mSingleAccountApp.signOut(new ISingleAccountPublicClientApplication.SignOutCallback() {
+                @Override
+                public void onSignOut() {
+                    mAccount = null;
+                }
+
+                @Override
+                public void onError(@NonNull MsalException exception) {
+                }
+            });
+
+            mSingleAccountApp.signIn(this, null, new String[]{"Contacts.Read"}, getAuthInteractiveCallback());
+        }
 
     }
 
@@ -473,61 +527,82 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onSuccess(IAuthenticationResult authenticationResult) {
-                /* Successfully got a token, use it to call a protected resource - MSGraph */
+                *//* Successfully got a token, use it to call a protected resource - MSGraph *//*
                 Log.d(TAG, "Successfully authenticated");
                 Log.d(TAG, "ID Token: " + authenticationResult.getAccount().getClaims().get("id_token"));
 
-                /* Update account */
+                *//* Update account *//*
                 mAccount = authenticationResult.getAccount();
                 //updateUI();
 
-                /* call graph */
-                callGraphAPI(authenticationResult);
+                tvMessage.setText("Outlook Details " +
+                        "\n\n" +
+                        mAccount.getClaims().get("name") +
+                        "\n" +
+                        mAccount.getClaims().get("email") *//*+
+                                "\n" +
+                    account.getIdToken()*//*);
+                *//* call graph *//*
+                getOutlookProfile(authenticationResult.getAccessToken());
+
             }
 
             @Override
             public void onError(MsalException exception) {
-                /* Failed to acquireToken */
+                *//* Failed to acquireToken *//*
                 Log.d(TAG, "Authentication failed: " + exception.toString());
                 //displayError(exception);
 
                 if (exception instanceof MsalClientException) {
-                    /* Exception inside MSAL, more info inside MsalError.java */
+                    *//* Exception inside MSAL, more info inside MsalError.java *//*
                 } else if (exception instanceof MsalServiceException) {
-                    /* Exception when communicating with the STS, likely config issue */
+                    *//* Exception when communicating with the STS, likely config issue *//*
                 }
             }
 
             @Override
             public void onCancel() {
-                /* User canceled the authentication */
+                *//* User canceled the authentication *//*
                 Log.d(TAG, "User cancelled login.");
             }
         };
-    }
+    }*/
 
-    private void callGraphAPI(final IAuthenticationResult authenticationResult) {
+    private void getOutlookProfile(String accessToken) {
+        startProgressBar();
+        ApiInterface apiInterface = ApiClient.getClient().create(ApiInterface.class);
+        Call<ResponseBody> apiCall = apiInterface.getOutlookProfile(Constants.MICROSOFT_GET_PROFILE_URL,
+                "Bearer " + accessToken);
+        apiCall.enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                dismissProgressBar();
+                if (response.body() != null) {
 
+                    String text = Util.convertStreamToString(response.body().byteStream());
+                    Log.d("Result", "text = " + text);
+                    MicrosoftProfileResponse microsoftProfileResponse = new Gson().fromJson(text,
+                            MicrosoftProfileResponse.class);
 
-        MSGraphRequestWrapper.callGraphAPIUsingVolley(
-                this,
-                "",
-                authenticationResult.getAccessToken(),
-                new com.android.volley.Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        /* Successfully called graph, process data and send to UI */
-                        Log.d(TAG, "Response: " + response.toString());
-                        tvMessage.setText(response.toString());
-                    }
-                },
-                new com.android.volley.Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Log.d(TAG, "Error: " + error.toString());
-                        //displayError(error);
-                    }
-                });
+                    String name = microsoftProfileResponse.getDisplayName();
+                    String email = microsoftProfileResponse.getUserPrincipalName();
+
+                    tvMessage.setText("Outlook Details " +
+                            "\n\n" +
+                            name +
+                            "\n" +
+                            email +
+                            "\n" );
+
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                Log.e("onFailure: ", t.getLocalizedMessage());
+                dismissProgressBar();
+            }
+        });
     }
 
 
@@ -842,6 +917,27 @@ public class MainActivity extends AppCompatActivity {
                         if (data.getBooleanExtra("state_match", false)) {
                             if (data.hasExtra("access_token")) {
                                 getYahooProfile(data.getStringExtra("access_token"));
+
+                            } else if (data.hasExtra("error_description")) {
+                                Toast.makeText(this, data.getStringExtra("error_description"), Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(this, "Some error occurred", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                }
+
+                break;
+
+            case MICROSOFT_LOGIN_REQUEST:
+
+                if (resultCode == Activity.RESULT_OK) {
+
+                    if (data != null && data.hasExtra("state_match")) {
+                        if (data.getBooleanExtra("state_match", false)) {
+                            if (data.hasExtra("access_token")) {
+                                getOutlookProfile(data.getStringExtra("access_token"));
 
                             } else if (data.hasExtra("error_description")) {
                                 Toast.makeText(this, data.getStringExtra("error_description"), Toast.LENGTH_SHORT).show();

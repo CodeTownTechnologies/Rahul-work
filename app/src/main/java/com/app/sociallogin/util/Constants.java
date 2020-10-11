@@ -40,4 +40,18 @@ public class Constants {
     public static final String LINKEDIN_REDIRECT_URI = "https://www.webpagetest.org/blank.html";
 
 
+    public static final String CLIENT_ID_MICROSOFT =
+            "4a3936e4-1e0a-4790-8348-d6121da5ac69";
+
+    public static final String CLIENT_SECRET_MICROSOFT =
+            "2hI_4M_YT-Otx5JaFSdro1G~7201Tq8RlM";
+
+    public static final String MICROSOFT_AUTHORIZATION_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
+    public static final String MICROSOFT_ACCESS_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+    public static final String MICROSOFT_GET_PROFILE_URL = "https://graph.microsoft.com/v1.0/me";
+    public static final String MICROSOFT_CONTACT_URL = "https://graph.microsoft.com/v1.0/contacts";
+    public static final String MICROSOFT_SCOPES = "openid profile email";
+    public static final String MICROSOFT_STATE = "HHfklleg48SE568K";
+    public static final String MICROSOFT_REDIRECT_URI = "https://www.webpagetest.org/blank.html";
+
 }

@@ -1,5 +1,5 @@
 {
-  "client_id" : "ed05340d-d272-4059-9a2e-b36e35de3869",
+  "client_id" : "a0a295f6-e375-4b87-87ac-eb3df13d5f38",
   "authorization_user_agent" : "DEFAULT",
   "redirect_uri" : "msauth://com.app.sociallogin/01%2FK4gf6hJAFGc0NAKRVIUwupsc%3D",
   "account_mode" : "SINGLE",
@@ -7,7 +7,10 @@
   "authorities" : [
     {
       "type": "AAD",
-      "authority_url": "https://login.microsoftonline.com/consumers"
+      "audience": {
+        "type": "AzureADandPersonalMicrosoftAccount",
+        "tenant_id": "common"
+      }
     }
   ]
 }

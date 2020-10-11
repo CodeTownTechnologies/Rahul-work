@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.app.sociallogin.api.ApiClient;
 import com.app.sociallogin.api.ApiInterface;
 import com.app.sociallogin.models.LinkedInTokenResponse;
+import com.app.sociallogin.models.MicrosoftTokenResponse;
 import com.app.sociallogin.models.YahooAccessTokenResponse;
 import com.app.sociallogin.util.Constants;
 import com.app.sociallogin.util.LoadingDialog;
@@ -25,6 +26,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
 
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -65,6 +67,13 @@ public class WebViewActivity extends AppCompatActivity {
                 String url = mainIntent.getStringExtra("url");
                 String state = mainIntent.getStringExtra("state");
                 renderYahooLogin(url, state);
+
+            }else if (mainIntent.getStringExtra("type").equals("outlook")
+                    && mainIntent.hasExtra("url")) {
+
+                String url = mainIntent.getStringExtra("url");
+                String state = mainIntent.getStringExtra("state");
+                renderOutlookLogin(url, state);
 
             }
         }
@@ -244,6 +253,98 @@ public class WebViewActivity extends AppCompatActivity {
         });
 
         webview.loadUrl(url);
+    }
+
+    private void renderOutlookLogin(String url, String state) {
+
+        final WebView webview = (WebView) findViewById(R.id.webview);
+
+        webview.getSettings().setJavaScriptEnabled(true);
+        webview.setWebViewClient(new WebViewClient() {
+
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(webview, url);
+                LoadingDialog.cancelLoading();
+                if (url.contains(Constants.MICROSOFT_REDIRECT_URI)) {
+                    try {
+                        URL redirectUrl = new URL(url);
+                        Map<String, String> queries = Util.getQueryMap(redirectUrl.getQuery());
+                        if (queries.get("state") != null && queries.get("state").equals(state)) {
+                            if (queries.get("code") != null) {
+                                String code = queries.get("code");
+                                LoadingDialog.showLoadingDialog(context, getString(R.string.loading));
+
+                                ApiInterface apiInterface = ApiClient.getClient().create(ApiInterface.class);
+                                Call<MicrosoftTokenResponse> apiCall = apiInterface.getOutlookAccessToken(Constants.MICROSOFT_ACCESS_TOKEN_URL,
+                                        "authorization_code", code,
+                                        Constants.MICROSOFT_REDIRECT_URI, Constants.CLIENT_ID_MICROSOFT,
+                                        Constants.CLIENT_SECRET_MICROSOFT);
+                                apiCall.enqueue(new Callback<MicrosoftTokenResponse>() {
+                                    @Override
+                                    public void onResponse(Call<MicrosoftTokenResponse> call, Response<MicrosoftTokenResponse> response) {
+                                        LoadingDialog.cancelLoading();
+                                        if (response.isSuccessful()) {
+
+                                            MicrosoftTokenResponse microsoftTokenResponse = response.body();
+
+                                            if (microsoftTokenResponse != null && microsoftTokenResponse.getAccessToken() != null) {
+                                                Intent resultIntent = new Intent();
+                                                resultIntent.putExtra("access_token", microsoftTokenResponse.getAccessToken());
+                                                resultIntent.putExtra("state_match", true);
+                                                setResult(Activity.RESULT_OK, resultIntent);
+                                                finish();
+                                            } else {
+                                                someError();
+                                            }
+                                        }else {
+                                            someError();
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onFailure(Call<MicrosoftTokenResponse> call, Throwable t) {
+                                        Log.e("onFailure: ", t.getLocalizedMessage());
+                                        LoadingDialog.cancelLoading();
+
+                                        someError();
+                                    }
+                                });
+
+
+                            } else if (queries.get("error") != null) {
+                                String errorDescription = queries.get("error_description");
+
+                                Intent resultIntent = new Intent();
+                                resultIntent.putExtra("error_description", errorDescription);
+                                resultIntent.putExtra("state_match", true);
+                                setResult(Activity.RESULT_OK, resultIntent);
+                                finish();
+                            }
+                        } else {
+
+                            Intent resultIntent = new Intent();
+                            resultIntent.putExtra("state_match", false);
+                            setResult(Activity.RESULT_OK, resultIntent);
+                            finish();
+                        }
+                    } catch (MalformedURLException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                LoadingDialog.showLoadingDialog(context, getString(R.string.loading));
+            }
+        });
+
+        webview.loadUrl(url);
+
+
     }
 
     private void someError(){
